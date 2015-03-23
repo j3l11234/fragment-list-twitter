@@ -5,10 +5,8 @@ package com.deitel.twittersearches;
 
 import java.util.ArrayList;
 import java.util.Collections;
-
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.ListActivity;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -18,21 +16,21 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.AdapterView;
-import android.widget.AdapterView.OnItemClickListener;
-import android.widget.AdapterView.OnItemLongClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.TextView;
 
-public class MainActivity extends Activity
+public class MainActivity extends Activity 
+	implements WebListFragment.OnFragmentInteractionListener
 {
    // name of SharedPreferences XML file that stores the saved searches 
    private static final String SEARCHES = "searches";
    
    private EditText queryEditText; // EditText where user enters a query
    private EditText tagEditText; // EditText where user tags a query
+   
+   private WebListFragment webListFragment;
+   
    private SharedPreferences savedSearches; // user's favorite searches
    private ArrayList<String> tags; // list of tags for saved searches
    private ArrayAdapter<String> adapter; // binds tags to ListView
@@ -47,7 +45,7 @@ public class MainActivity extends Activity
       // get references to the EditTexts  
       queryEditText = (EditText) findViewById(R.id.queryEditText);
       tagEditText = (EditText) findViewById(R.id.tagEditText);
-      
+
       // get the SharedPreferences containing the user's saved searches 
       savedSearches = getSharedPreferences(SEARCHES, MODE_PRIVATE); 
 
@@ -64,11 +62,11 @@ public class MainActivity extends Activity
          (ImageButton) findViewById(R.id.saveButton);
       saveButton.setOnClickListener(saveButtonListener);
 
-      // MOVE to ListFragment _ register listener that searches Twitter when user touches a tag
-      //getListView().setOnItemClickListener(itemClickListener);
-      
-      // MOVE to ListFragment _  set listener that allows user to delete or edit a search
-      //getListView().setOnItemLongClickListener(itemLongClickListener);
+      webListFragment = new WebListFragment(adapter);
+      getFragmentManager().beginTransaction()
+      .add(R.id.frameLayout_placeholder,webListFragment)
+      .commit();
+   
    } // end method onCreate
 
    // NO CHANGES _  saveButtonListener saves a tag-query pair into SharedPreferences
@@ -126,85 +124,6 @@ public class MainActivity extends Activity
       }
    } 
    
-   /* MOVE to ListFragment and Activity Interface implementation
-   OnItemClickListener itemClickListener = new OnItemClickListener() 
-   {
-      @Override
-      public void onItemClick(AdapterView<?> parent, View view, 
-         int position, long id) 
-      {
-         // get query string and create a URL representing the search
-         String tag = ((TextView) view).getText().toString();
-         String urlString = getString(R.string.searchURL) +
-            Uri.encode(savedSearches.getString(tag, ""), "UTF-8");
-         
-         // create an Intent to launch a web browser    
-         Intent webIntent = new Intent(Intent.ACTION_VIEW, 
-            Uri.parse(urlString));                      
-
-         startActivity(webIntent); // launches web browser to view results
-      } 
-   }; // end itemClickListener declaration*/
-   
-   // CHANGED _ to provide itemLongClickListener to the ListFragment
-   // displays a dialog allowing the user to delete or edit a saved search
-   public OnItemLongClickListener getOnItemLongClickListener() {
-       return new OnItemLongClickListener() {
-           @Override
-           public boolean onItemLongClick(AdapterView<?> parent, View view,
-                                          int position, long id) {
-               // get the tag that the user long touched
-               final String tag = ((TextView) view).getText().toString();
-
-               // create a new AlertDialog
-               AlertDialog.Builder builder =
-                       new AlertDialog.Builder(MainActivity.this);
-
-               // set the AlertDialog's title
-               builder.setTitle(
-                       getString(R.string.shareEditDeleteTitle, tag));
-
-               // set list of items to display in dialog
-               builder.setItems(R.array.dialog_items,
-                       new DialogInterface.OnClickListener() {
-                           // responds to user touch by sharing, editing or
-                           // deleting a saved search
-                           @Override
-                           public void onClick(DialogInterface dialog, int which) {
-                               switch (which) {
-                                   case 0: // share
-                                       shareSearch(tag);
-                                       break;
-                                   case 1: // edit
-                                       // set EditTexts to match chosen tag and query
-                                       tagEditText.setText(tag);
-                                       queryEditText.setText(
-                                               savedSearches.getString(tag, ""));
-                                       break;
-                                   case 2: // delete
-                                       deleteSearch(tag);
-                                       break;
-                               }
-                           }
-                       } // end DialogInterface.OnClickListener
-               ); // end call to builder.setItems
-
-               // set the AlertDialog's negative Button
-               builder.setNegativeButton(getString(R.string.cancel),
-                       new DialogInterface.OnClickListener() {
-                           // called when the "Cancel" Button is clicked
-                           public void onClick(DialogInterface dialog, int id) {
-                               dialog.cancel(); // dismiss the AlertDialog
-                           }
-                       }
-               ); // end call to setNegativeButton
-
-               builder.create().show(); // display the AlertDialog
-               return true;
-           } // end method onItemLongClick
-       }; // end OnItemLongClickListener declaration
-   }; // end get method
-
    // NO CHANGES _ allows user to choose an app for sharing a saved search's URL
    private void shareSearch(String tag)
    {
@@ -274,6 +193,66 @@ public class MainActivity extends Activity
 
    // ADDED to set up the ListFragment
    public ArrayAdapter<String> getAdapter(){return adapter;}
+
+	@Override
+	// displays a dialog allowing the user to delete or edit a saved search
+	public void onItemLongClick(final String tag) {
+	    // create a new AlertDialog
+	    AlertDialog.Builder builder =
+	            new AlertDialog.Builder(MainActivity.this);
+	
+	    // set the AlertDialog's title
+	    builder.setTitle(
+	            getString(R.string.shareEditDeleteTitle, tag));
+	
+	    // set list of items to display in dialog
+	    builder.setItems(R.array.dialog_items,
+	            new DialogInterface.OnClickListener() {
+	                // responds to user touch by sharing, editing or
+	                // deleting a saved search
+	                @Override
+	                public void onClick(DialogInterface dialog, int which) {
+	                    switch (which) {
+	                        case 0: // share
+	                            shareSearch(tag);
+	                            break;
+	                        case 1: // edit
+	                            // set EditTexts to match chosen tag and query
+	                            tagEditText.setText(tag);
+	                            queryEditText.setText(
+	                                    savedSearches.getString(tag, ""));
+	                            break;
+	                        case 2: // delete
+	                            deleteSearch(tag);
+	                            break;
+	                    }
+	                }
+	            } // end DialogInterface.OnClickListener
+	    ); // end call to builder.setItems
+	
+	    // set the AlertDialog's negative Button
+	    builder.setNegativeButton(getString(R.string.cancel),
+	            new DialogInterface.OnClickListener() {
+	                // called when the "Cancel" Button is clicked
+	                public void onClick(DialogInterface dialog, int id) {
+	                    dialog.cancel(); // dismiss the AlertDialog
+	                }
+	            }
+	    ); // end call to setNegativeButton
+	    builder.create().show(); // display the AlertDialog
+	}
+
+	@Override
+	public void onItemClick(String tag) {
+		// TODO Auto-generated method stub
+		String urlString = getString(R.string.searchURL) + 
+				Uri.encode(savedSearches.getString(tag, ""), "UTF-8");
+		
+		getFragmentManager().beginTransaction()
+			.replace(R.id.frameLayout_placeholder,WebViewFragment.newInstance(urlString))
+			.addToBackStack(null)
+			.commit();
+	}
 
 } // end class MainActivity
 
